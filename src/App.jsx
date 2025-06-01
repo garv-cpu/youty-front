@@ -1,35 +1,79 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import axios from 'axios';
+import ReCAPTCHA from 'react-google-recaptcha';
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [url, setUrl] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleConvert = async () => {
+    if (!url) {
+      setError('Please enter a YouTube URL');
+      return;
+    }
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/convert',
+        { url, recaptchaToken },
+        { responseType: 'blob' }
+      );
+
+      // Create a download link for the MP3
+      const blob = new Blob([response.data], { type: 'audio/mp3' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = 'converted-audio.mp3';
+      link.click();
+    } catch (err) {
+      setError(err.response?.data?.error || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+        <h1 className="text-2xl font-bold mb-6 text-center">
+          YouTube to MP3 Converter
+        </h1>
+        <input
+          type="text"
+          placeholder="Enter YouTube URL"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="w-full p-2 mb-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <div className="mb-4">
+          <ReCAPTCHA
+            sitekey="6Lf0BlIrAAAAAJ4R_NsQsAnD3oA9J9NGjXC7rA65"
+            onChange={(token) => setRecaptchaToken(token)}
+          />
+        </div>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <button
+          onClick={handleConvert}
+          disabled={loading}
+          className={`w-full p-2 text-white rounded ${
+            loading ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
+          }`}
+        >
+          {loading ? 'Converting...' : 'Generate MP3'}
         </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
